@@ -712,8 +712,8 @@ parseBlock (Elem e) =
         "attribution" -> skip
         "titleabbrev" -> skip
         "authorinitials" -> skip
-        "bibliography" -> sect 0
-        "bibliodiv" -> sect 1
+        "bibliography" -> sect 0 []
+        "bibliodiv" -> sect 1 []
         "biblioentry" -> parseMixed para (elContent e)
         "bibliomixed" -> parseMixed para (elContent e)
         "equation"         -> para <$> equation e displayMath
@@ -722,30 +722,30 @@ parseBlock (Elem e) =
                          <$> getInlines e
         "glossseealso" -> para . (\ils -> text "See also " <> ils <> str ".")
                          <$> getInlines e
-        "glossary" -> sect 0
+        "glossary" -> sect 0 []
         "glossdiv" -> definitionList <$>
                   mapM parseGlossEntry (filterChildren (named "glossentry") e)
         "glosslist" -> definitionList <$>
                   mapM parseGlossEntry (filterChildren (named "glossentry") e)
-        "chapter" -> modify (\st -> st{ dbBook = True}) >> sect 0
-        "appendix" -> sect 0
-        "preface" -> sect 0
+        "chapter" -> modify (\st -> st{ dbBook = True}) >> sect 0 []
+        "appendix" -> sect 0 ["appendix"]
+        "preface" -> sect 0 ["preface"]
         "bridgehead" -> para . strong <$> getInlines e
-        "sect1" -> sect 1
-        "sect2" -> sect 2
-        "sect3" -> sect 3
-        "sect4" -> sect 4
-        "sect5" -> sect 5
-        "section" -> gets dbSectionLevel >>= sect . (+1)
-        "refsect1" -> sect 1
-        "refsect2" -> sect 2
-        "refsect3" -> sect 3
-        "refsection" -> gets dbSectionLevel >>= sect . (+1)
+        "sect1" -> sect 1 []
+        "sect2" -> sect 2 []
+        "sect3" -> sect 3 []
+        "sect4" -> sect 4 []
+        "sect5" -> sect 5 []
+        "section" -> gets dbSectionLevel >>= (\n -> sect (n + 1) [])
+        "refsect1" -> sect 1 []
+        "refsect2" -> sect 2 []
+        "refsect3" -> sect 3 []
+        "refsection" -> gets dbSectionLevel >>= (\n -> sect (n + 1) [])
         l@_ | l `elem` admonitionTags -> parseAdmonition $ T.pack l
         "area" -> skip
         "areaset" -> skip
         "areaspec" -> skip
-        "qandadiv" -> gets dbSectionLevel >>= sect . (+1)
+        "qandadiv" -> gets dbSectionLevel >>= (\n -> sect (n + 1) [])
         "question" -> addToStart (strong (str "Q:") <> str " ") <$> getBlocks e
         "answer" -> addToStart (strong (str "A:") <> str " ") <$> getBlocks e
         "abstract" -> blockQuote <$> getBlocks e
@@ -896,18 +896,20 @@ parseBlock (Elem e) =
                                  headrows' bodyrows
          isEntry x  = named "entry" x || named "td" x || named "th" x
          parseRow = mapM (parseMixed plain . elContent) . filterChildren isEntry
-         sect n = do isbook <- gets dbBook
+
+         sect n classes = do
+                     isbook <- gets dbBook
                      let n' = if isbook || n == 0 then n + 1 else n
                      headerText <- case filterChild (named "title") e `mplus`
-                                        (filterChild (named "info") e >>=
-                                            filterChild (named "title")) of
-                                      Just t  -> getInlines t
-                                      Nothing -> return mempty
+                                         (filterChild (named "info") e >>=
+                                             filterChild (named "title")) of
+                                       Just t  -> getInlines t
+                                       Nothing -> return mempty
                      modify $ \st -> st{ dbSectionLevel = n }
                      b <- getBlocks e
                      let ident = attrValue "id" e
                      modify $ \st -> st{ dbSectionLevel = n - 1 }
-                     return $ headerWith (ident,[],[]) n' headerText <> b
+                     return $ headerWith (ident,classes,[]) n' headerText <> b
          lineItems = mapM getInlines $ filterChildren (named "line") e
          -- | Admonitions are parsed into a div. Following other Docbook tools that output HTML,
          -- we parse the optional title as a div with the @title@ class, and give the
