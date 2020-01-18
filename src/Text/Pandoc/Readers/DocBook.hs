@@ -700,11 +700,11 @@ parseBlock (Elem e) =
         "index" -> skip -- skip index, since page numbers meaningless
         "para"  -> parseMixed para (elContent e)
         "formalpara" -> do
-           tit <- case filterChild (named "title") e of
-                        Just t  -> (para . strong . (<> str ".")) <$>
-                                     getInlines t
-                        Nothing -> return mempty
-           (tit <>) <$> parseMixed para (elContent e)
+           title <- case filterChild (named "title") e of
+                        Just t  -> divWith ("", ["title"], []) . plain <$> getInlines t
+                        Nothing -> return $ mempty
+           blocks <- getBlocks e
+           return $ divWith (attrValue "id" e,[],[]) (title <> blocks)
         "simpara"  -> parseMixed para (elContent e)
         "ackno"  -> parseMixed para (elContent e)
         "epigraph" -> parseBlockquote
@@ -818,6 +818,11 @@ parseBlock (Elem e) =
            let classes' = case attrValue "language" e of
                                 "" -> []
                                 x  -> [x]
+                          ++
+                          case attrValue "linenumbering" e of
+                                "" -> []
+                                x  -> [x]
+
            return $ codeBlockWith (attrValue "id" e, classes', [])
                   $ trimNl $ T.pack $ strContentRecursive e
          parseBlockquote = do
