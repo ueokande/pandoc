@@ -102,7 +102,7 @@ List of all DocBook tags, with [x] indicating implemented,
 [ ] classsynopsisinfo - Information supplementing the contents of
     a ClassSynopsis
 [ ] cmdsynopsis - A syntax summary for a software command
-[ ] co - The location of a callout embedded in text
+[x] co - The location of a callout embedded in text
 [x] code - An inline code fragment
 [x] col - Specifications for a column in an HTML table
 [x] colgroup - A group of columns in an HTML table
@@ -942,7 +942,9 @@ strContentRecursive = strContent .
   (\e' -> e'{ elContent = map elementToStr $ elContent e' })
 
 elementToStr :: Content -> Content
-elementToStr (Elem e') = Text $ CData CDataText (strContentRecursive e') Nothing
+elementToStr (Elem e') = if qName (elName e') == "co"
+    then Text $ CData CDataText "<>" Nothing
+    else Text $ CData CDataText (strContentRecursive e') Nothing
 elementToStr x = x
 
 parseInline :: PandocMonad m => Content -> DB m Inlines
